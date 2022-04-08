@@ -158,6 +158,8 @@ type CommitMultiStore interface {
 	// Mount*Store() are complete.
 	LoadLatestVersion() error
 
+	IntermediateStateRoot() ([]byte, error)
+
 	// LoadLatestVersionAndUpgrade will load the latest version, but also
 	// rename/delete/create sub-store keys, before registering all the keys
 	// in order to handle breaking formats in migrations

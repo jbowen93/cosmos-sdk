@@ -195,6 +195,19 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 			app.logger.Error("BeginBlock listening hook failed", "height", req.Header.Height, "err", err)
 		}
 	}
+	isr, err := app.cms.IntermediateStateRoot()
+	if err != nil {
+		app.logger.Error("BeginBlock ISR failed", "err", err)
+	}
+	res.Events = append(res.Events, abci.Event{
+		Type: "isr",
+		Attributes: []abci.EventAttribute{
+			{
+				Key:   "begin",
+				Value: string(isr),
+			},
+		},
+	})
 
 	return res
 }
@@ -221,6 +234,19 @@ func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBloc
 			app.logger.Error("EndBlock listening hook failed", "height", req.Height, "err", err)
 		}
 	}
+	isr, err := app.cms.IntermediateStateRoot()
+	if err != nil {
+		app.logger.Error("EndbBlock ISR failed", "err", err)
+	}
+	res.Events = append(res.Events, abci.Event{
+		Type: "isr",
+		Attributes: []abci.EventAttribute{
+			{
+				Key:   "end",
+				Value: string(isr),
+			},
+		},
+	})
 
 	return res
 }
@@ -287,6 +313,19 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx 
 	if err != nil {
 		return sdkerrors.ResponseDeliverTx(err, uint64(res.GasUsed), uint64(res.GasWanted), app.trace)
 	}
+	isr, err := app.cms.IntermediateStateRoot()
+	if err != nil {
+		return sdkerrors.ResponseDeliverTx(err, uint64(res.GasUsed), uint64(res.GasWanted), app.trace)
+	}
+	abciRes.Events = append(abciRes.Events, abci.Event{
+		Type: "isr",
+		Attributes: []abci.EventAttribute{
+			{
+				Key:   "deliverTx",
+				Value: string(isr),
+			},
+		},
+	})
 
 	return abciRes
 

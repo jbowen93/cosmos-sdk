@@ -559,6 +559,38 @@ func (s *Store) Commit() types.CommitID {
 	return *cid
 }
 
+func (s *Store) IntermediateStateRoot() ([]byte, error) {
+	// Substores read-lock this mutex; lock to prevent racey invalidation of underlying txns
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	// Determine the target version
+	versions, err := s.stateDB.Versions()
+	if err != nil {
+		panic(err)
+	}
+	target := versions.Last() + 1
+	if target > math.MaxInt64 {
+		panic(ErrMaximumHeight)
+	}
+	// Fast forward to initial version if needed
+	if s.InitialVersion != 0 && target < s.InitialVersion {
+		target = s.InitialVersion
+	}
+	storeHashes, err := s.getMerkleRoots()
+	if err != nil {
+		return nil, err
+	}
+	// Update substore Merkle roots
+	for key, storeHash := range storeHashes {
+		pfx := substorePrefix(key)
+		stateW := prefixdb.NewPrefixReadWriter(s.stateTxn, pfx)
+		if err = stateW.Set(substoreMerkleRootKey, storeHash); err != nil {
+			return nil, err
+		}
+	}
+	return sdkmaps.HashFromMap(storeHashes), nil
+}
+
 func (s *Store) getMerkleRoots() (ret map[string][]byte, err error) {
 	ret = map[string][]byte{}
 	for key := range s.schema {
