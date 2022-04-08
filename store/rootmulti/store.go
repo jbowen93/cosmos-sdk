@@ -412,6 +412,10 @@ func (rs *Store) Commit() types.CommitID {
 	}
 }
 
+func (rs *Store) IntermediateStateRoot() ([]byte, error) {
+	panic("not implemented")
+}
+
 // pruneStores will batch delete a list of heights from each mounted sub-store.
 // Afterwards, pruneHeights is reset.
 func (rs *Store) pruneStores() {

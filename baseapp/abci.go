@@ -196,6 +196,19 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	}
 	// set the signed validators for addition to context in deliverTx
 	app.voteInfos = req.LastCommitInfo.GetVotes()
+	isr, err := app.cms.IntermediateStateRoot()
+	if err != nil {
+		app.logger.Error("BeginBlock ISR failed", "err", err)
+	}
+	res.Events = append(res.Events, abci.Event{
+		Type: "isr",
+		Attributes: []abci.EventAttribute{
+			{
+				Key:   []byte("beginBlock"),
+				Value: isr,
+			},
+		},
+	})
 	return res
 }
 
@@ -216,6 +229,19 @@ func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBloc
 		res.ConsensusParamUpdates = cp
 	}
 
+	isr, err := app.cms.IntermediateStateRoot()
+	if err != nil {
+		app.logger.Error("EndbBlock ISR failed", "err", err)
+	}
+	res.Events = append(res.Events, abci.Event{
+		Type: "isr",
+		Attributes: []abci.EventAttribute{
+			{
+				Key:   []byte("endBlock"),
+				Value: isr,
+			},
+		},
+	})
 	return res
 }
 
@@ -260,7 +286,7 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 // Otherwise, the ResponseDeliverTx will contain releveant error information.
 // Regardless of tx execution outcome, the ResponseDeliverTx will contain relevant
 // gas execution context.
-func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
+func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliverTx) {
 	defer telemetry.MeasureSince(time.Now(), "abci", "deliver_tx")
 
 	gInfo := sdk.GasInfo{}
@@ -279,13 +305,29 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx 
 		return sdkerrors.ResponseDeliverTxWithEvents(err, gInfo.GasWanted, gInfo.GasUsed, anteEvents, app.trace)
 	}
 
-	return abci.ResponseDeliverTx{
+	res = abci.ResponseDeliverTx{
 		GasWanted: int64(gInfo.GasWanted), // TODO: Should type accept unsigned ints?
 		GasUsed:   int64(gInfo.GasUsed),   // TODO: Should type accept unsigned ints?
 		Log:       result.Log,
 		Data:      result.Data,
 		Events:    sdk.MarkEventsToIndex(result.Events, app.indexEvents),
 	}
+
+	isr, err := app.cms.IntermediateStateRoot()
+	if err != nil {
+		return sdkerrors.ResponseDeliverTx(err, uint64(res.GasUsed), uint64(res.GasWanted), app.trace)
+	}
+	res.Events = append(res.Events, abci.Event{
+		Type: "isr",
+		Attributes: []abci.EventAttribute{
+			{
+				Key:   []byte("deliverTx"),
+				Value: isr,
+			},
+		},
+	})
+
+	return res
 }
 
 // Commit implements the ABCI interface. It will commit all state that exists in

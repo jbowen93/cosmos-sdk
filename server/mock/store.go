@@ -55,6 +55,10 @@ func (ms multiStore) ListeningEnabled(key store.StoreKey) bool {
 	panic("not implemented")
 }
 
+func (ms multiStore) IntermediateStateRoot() ([]byte, error) {
+	panic("not implemented")
+}
+
 func (ms multiStore) Commit() sdk.CommitID {
 	panic("not implemented")
 }
